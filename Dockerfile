@@ -1,40 +1,28 @@
-FROM ubuntu:latest
-LABEL authors="sagash"
-
-#PHP Apache docker image for php8.3
-FROM php:8.3-fpm
+# Use the official PHP image with Apache
+FROM php:8.3-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
     libpng-dev \
-    libonig-dev \
-    libxml2-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     zip \
     unzip \
-    libzip-dev \
-    libicu-dev \
-    && docker-php-ext-configure intl \
-    && docker-php-ext-install pdo_mysql mbstring intl zip \
-    && docker-php-ext-enable intl zip
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Enable Apache mod_rewrite
+RUN a2enmod rewrite
 
-WORKDIR /app
+# Set working directory
+WORKDIR /var/www/html
 
-# Copy composer files
-COPY composer.json composer.lock ./
+# Copy existing application directory contents
+COPY . /var/www/html
 
-# Install PHP dependencies
-RUN composer install --no-scripts --no-autoloader
+# Copy existing application directory permissions
+COPY --chown=www-data:www-data . /var/www/html
 
-# Copy application code
-COPY . .
-
-# Run database migrations and seeders
-ENTRYPOINT ["php", "artisan"]
-CMD ["serve", "--host=0.0.0.0", "--port", "80"]
-
-
+# Expose port 8080 and start Apache
+EXPOSE 8080
+CMD ["apache2-foreground"]
